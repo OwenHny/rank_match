@@ -12,7 +12,7 @@ class participant:
         self.rankings = rankings
         self.matched = 0
         self.spots = slots
-        self.matched_id = [None] * slots # TODO: fix match algorithm to add/remove proper id
+        self.matched_ids = [] 
 
 
 students = []
@@ -46,8 +46,8 @@ for filename in os.listdir(student_folder):
                 rankings[int(data[i+2]['rank']) - 1] = data[i+2]['id'] 
 
             students.append(participant(rankings,filename,True,1))
+            #students.append(participant(rankings,data[0]["rank"] + " " + data[1]["rank"],True,1))
 
-#print(students)
 
 # fill employer rankings
 employer_folder  = '/employers'
@@ -56,7 +56,37 @@ for filename in os.listdir(student_folder):
     file_path = os.path.join(student_folder, filename)
     if os.path.isfile(file_path):
         #open file and fill employers 
-        print("")
+         with open(file_path, 'r') as file:
+            reader = csv.reader(file)
+
+            # Read the contents of the file
+            csv_contents = list(reader)
+
+            # Get the first row (headers)
+            headers = csv_contents[0]
+
+            # Get the fourth row
+            fourth_row = csv_contents[3]
+
+            # Extract the data from the first row for each column that has content on the fourth row
+            data = [{"id": headers[i], "rank":fourth_row[i]} for i in range(len(headers)) if fourth_row[i]]
+            
+            rankings = [None]* (len(data) - 2)
+            for i in range(len(data)-2):
+                rankings[int(data[i+2]['rank']) - 1] = data[i+2]['id'] 
+
+            employers.append(participant(rankings,filename,False,1))
+
+def lowest_rank(rankings, matches):
+    low = 0
+
+    index = None
+    for student in matches:
+        if low < rankings.index(student):
+            index = matches.index(student)
+
+
+    return {'rank':low,'index':index}
 
 
 cont = True
@@ -64,29 +94,40 @@ cont = True
 while cont:  
     cont = False
     for student in students:
-        if (not student.matched < student.spots and student.curr_option < len(student.rankings)): # the student is not currently matched go to next option in list
+        if ((not student.matched) and student.curr_option < len(student.rankings)): # the student is not currently matched go to next option in list
             cont = True # a student is not matched an could have a match so continue the matching process
             
-            employer = employers[student.rankings[student.curr_option]] #get net ranked employer
+            employer = employers[student.rankings[student.curr_option]] #get next ranked employer
 
             # if student is ranked higher than the employers current opption then employer and student are tentativly matched
             if(employer.rankings.index(student.id) < employer.curr_option): 
                 if(employer.matched == employer.spots):
                     # unset current student matching
-                    unmatched_student = students[employer.matched_id]
 
+                    #get lowest ranked student
+                    index = lowest_rank(employer.rankings, employer.matched_ids)['index']
+                    unmatched_student = students[employer.matched_ids[index]]
+
+                    # unmatch student and progress student to next option
                     unmatched_student.matched -= 1
                     unmatched_student.curr_option += 1
-                    unmatched_student.matched_id = None
+
+                    #remove match ids
+                    unmatched_student.matched_ids.remove(employer.id)
+                    employer.matched_ids.remove(unmatched_student.id)
 
                 # set match
                 employer.matched += 1
                 student.matched += 1
 
-                employer.matched_id = student.id
-                student.matched_id = employer.id
+                # hold corresponding ids for match
+                employer.matched_ids.append(student.id)
+                student.matched_ids.append(employer.id)
 
-                employer.curr_option = employer.rankings.index(student.id)
+                # if the employer has all positions tentativly filled then they would brake a match if the student is ranked higher than their current options
+                # if employer does not have all positions filled they will take any ranked student
+                if(employer.matched == employer.spots):
+                    employer.curr_option = lowest_rank(employer.rankings, employer.matched_ids)['rank']
 
             else:
                 # set student to try next option
@@ -95,7 +136,7 @@ while cont:
 
 #print matches
 for student in students:
-    print(student.id, student.matched_id)
+    print(student.id, student.matched_ids)
 
 
 #print stats
