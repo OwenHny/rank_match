@@ -12,7 +12,7 @@ class participant:
         self.rankings = rankings
         self.matched = 0
         self.spots = slots
-        self.matched_id = None
+        self.matched_id = [None] * slots # TODO: fix match algorithm to add/remove proper id
 
 
 students = []
@@ -39,9 +39,15 @@ for filename in os.listdir(student_folder):
             fourth_row = csv_contents[3]
 
             # Extract the data from the first row for each column that has content on the fourth row
-            data = [headers[i] for i in range(len(headers)) if fourth_row[i]]
+            data = [{"id": headers[i], "rank":fourth_row[i]} for i in range(len(headers)) if fourth_row[i]]
+            
+            rankings = [None]* (len(data) - 2)
+            for i in range(len(data)-2):
+                rankings[int(data[i+2]['rank']) - 1] = data[i+2]['id'] 
 
-            print(data)
+            students.append(participant(rankings,filename,True,1))
+
+#print(students)
 
 # fill employer rankings
 employer_folder  = '/employers'
